@@ -225,7 +225,7 @@ extends
         }
     }
 
-    void addBreakpoint(Breakpoint breakpoint)
+    boolean addBreakpoint(Breakpoint breakpoint)
     {
         String templateName = breakpoint.getTemplateName();
         synchronized(templateDebugInfos)
@@ -248,26 +248,35 @@ extends
                     }
                     else
                     {
-                        insertDebugBreak(t, breakpoint);
+                        boolean inserted = insertDebugBreak(t, breakpoint);
+                        if(!inserted){
+                            breakpoints.remove(breakpoint);
+                            return false;
+                        }
                     }
                 }
             }
         }
+        return true;
     }
 
-    private static void insertDebugBreak(Template t, Breakpoint breakpoint)
+    private static boolean insertDebugBreak(Template t, Breakpoint breakpoint)
     {
         TemplateElement te = findTemplateElement(t.getRootTreeNode(), breakpoint.getLine());
         if(te == null)
         {
-            return;
+            return false;
         }
         TemplateElement parent = (TemplateElement)te.getParent();
-        DebugBreak db = new DebugBreak(te);
+        if( parent instanceof DebugBreak)
+            return false;
+        DebugBreak db = new DebugBreak(te, breakpoint.getLine());
         // TODO: Ensure there always is a parent by making sure
         // that the root element in the template is always a MixedContent
         // Also make sure it doesn't conflict with anyone's code.
-        parent.setChildAt(parent.getIndex(te), db);
+        int index = parent.getIndex(te);
+        parent.setChildAt(index, db);
+        return true;
     }
 
     private static TemplateElement findTemplateElement(TemplateElement te, int line)
